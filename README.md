@@ -1,0 +1,661 @@
+# Hello
+
+## 1. 题号：1 -- 两数之和（简单）
+### 1.1 待优化解法(自己写的)
+```cpp
+class Solution {
+public:
+    vector<int> twoSum(vector<int>& nums, int target) {
+        int n, m;
+        for (int i = 0; i < nums.size(); ++i) {
+            for (int j = i + 1; j < nums.size(); ++j) {
+                if (nums[i] + nums[j] == target) {
+                    return {i, j};          // 初始化列表，自动根据返回值推导返回值类型为 vector<int>
+                }
+            }
+        }
+        return {};
+    }
+};
+```
+
+- **思路**：分别用 `i` 和 `j` 遍历数组(**注意：`j` 从 `i + 1` 开始**)，二者相加为目标值，对应下标即为返回值;
+
+- **错误点**：
+1. **逻辑错误**：无；
+2. **可优化**：**当前代码时间复杂度为 $O(n^2)$**，可以**通过哈希表优化为 $$O(n)$$**，用**空间换时间**;
+
+### 1.2 正确解法及分析
+代码如下：
+```cpp
+class Solution {
+public:
+    vector<int> twoSum(vector<int>& nums, int target) {
+        unordered_map<int, int> mp;             // value - index
+        for (int i = 0; i < nums.size(); ++i) {
+            int need = target - nums[i];
+            if (mp.find(need) != mp.end()) {
+                return {mp[need], i};
+            }
+            mp[nums[i]] = i;
+        }
+        return {};
+    }
+};
+```
+
+- **知识点(关键词)**：**哈希表**，**边找边存**
+
+- **思路**：遍历链表时，把每次遍历过的 `index-value`(即 `i - nums[i]`) 对用哈希表按照 `value-index` 存储，这样，每次就只需用哈希表回溯查找前面是否有 `target - nums[i]`，找到后，哈希表存储的 `index` 可以通过哈希表的映射与当前 `i` 一起作为返回值，**关键点：边查边存**；
+
+---
+
+## 2. 题号：283 -- 移动零（简单）
+### 2.1 待优化解法(自己写的)
+```cpp
+class Solution {
+public:
+    void moveZeroes(vector<int>& nums) {
+        int cur = 0;
+        int rear = nums.size() - 1;
+        while (cur < rear) {
+            if (nums[cur] == 0) {       // 碰到 0，则 前移 + 最后一位置零
+                for (int i = cur; i < rear; ++i) {
+                    nums[i] = nums[i + 1];
+                }
+                nums[rear] = 0;
+                --rear;
+            } else {                    // 没碰到 0，则下一位
+                ++cur;
+            }
+        }
+    }
+};
+```
+
+- **思路**：遇到 0，**前移** + **最后一位置零** -- 每次完成 $O(n)$ 级别的移动，共 n 次，时间复杂度 $O(n^2)$，空间复杂度O(1);
+
+- **错误点**：
+1. **逻辑错误**：无；
+2. **可优化**：当前算法时间复杂度为 $O(n^2)$;
+
+### 2.2 正确解法及分析
+代码如下：
+```cpp
+class Solution {
+public:
+    void moveZeroes(vector<int>& nums) {
+        int slow = 0;                                           // 慢指针：指向下一个交换位置到前面的位置
+        for (int fast = 0; fast < nums.size(); ++fast) {        // 快指针：指向下一个等待交换的非零元素
+            if (slow != fast) {
+                if (nums[fast] != 0) {
+                    swap(nums[slow], nums[fast]);
+                    ++slow;                                         // 更新 slow
+                }
+            }
+        }
+        // 循环结束后，slow 及其后面的位置自然都是 0
+    }
+};
+```
+
+- **知识点(关键词)**：**快慢指针**，**原地操作**
+
+- **思路**：**慢指针指向下一个前面可交换的位置，快指针寻找后面可交换的非零元素**，时间复杂度降至 $O(n)$，循环结束后，slow 极其后面的位置自然都是 0；
+
+---
+
+## 3. 题号：26 -- 删除有序数组中的重复项（简单）
+### 3.1 可优化解法 1(C 风格)
+```cpp
+class Solution {
+public:
+    int removeDuplicates(vector<int>& nums) {
+        if (nums.empty()) return 0;
+        int len = nums.size();                          // 手动维护长度
+        for (int i = 0; i < len - 1; ++i) {
+            for (int j = i + 1; j < len;) {
+                if (nums[i] == nums[j]) {
+                    // 前移
+                    for (int k = j; k < len - 1; ++k) {
+                        nums[k] = nums[k + 1];
+                    }
+                    // --nums.size();                  // 错误，nums.size() 由 C++ 的vector内部维护，不能直接修改，需手动维护长度
+                    --len;
+                    // j 不递增，继续检查当前 j 位置的新元素
+                } else {
+                    ++j;
+                }
+            }
+        }
+        return len;
+    }
+};
+```
+
+- **思路**：**两次遍历检查是否有重复，最后一次遍历用于前移覆盖重复元素** -- 时间复杂度 $O(n^3)$;
+
+- **注意**：
+1. 最后要返回删除重复元素后数组的长度，所以要更新 `nums.size()` 的长度，但是对于 C 风格代码，因为 **`vector.size`() 由 C++ 内部维护，不对外暴露,不能直接 `--nums.size()`**；
+2. **如果进行了元素前移，`j` 不用自增，因为之前位置的 j 对应的元素已经被覆盖了**；
+
+### 3.2 可优化解法 2(迭代器，C++ 风格)
+```cpp
+class Solution {
+public:
+    int removeDuplicates(vector<int>& nums) {
+        if (nums.empty()) return 0;
+        for (auto it = nums.begin(); it != nums.end(); ++it) {
+            for (auto jt = it + 1; jt != nums.end();) {// 错误 jt = ++it，会改变外层 it 的值，先前置自增it，再赋值给 jt，应改为 jt = it + 1
+                if (*it == *jt) {
+                    jt = nums.erase(jt);
+                } else {
+                    ++jt;
+                }
+            }
+        }
+        return nums.size();
+    }
+};
+```
+
+- **思路**：`erase`：内层的批量前移被压缩成单次 memmove 调用 + 一次 size 自减。**C++ 层面的循环开销显著更低** -- 时间复杂度 $O(n)$，空间复杂度 $O(1)$(vector内部维护长度)；
+
+- **注意**：`jt = it + 1` 不能写成 `jt = ++it`，因为 **`jt = ++it` 会改变 `it` 的指向**；
+
+### 3.3 正确解法及分析
+代码如下：
+```cpp
+class Solution {
+public:
+    int removeDuplicates(vector<int>& nums) {
+        if (nums.empty()) return 0;
+        int slow = 0;                                       // 慢指针：指向已去重部分的最后一个元素
+        for (int fast = 1; fast < nums.size(); ++fast) {    // 快指针：不断寻找新的元素加到slow的下一位置
+            if (nums[slow] != nums[fast]) {                 // 找到新元素，则加到slow的下一位置  
+                ++slow;
+                nums[slow] = nums[fast];
+            }
+        }
+        return slow + 1;                                    // slow 为下标，最终去重部分元素总数应该是 index + 1
+    }
+};
+```
+
+- **知识点(关键词)**：**有序数组**(题目明确说明)，**快慢指针(覆盖式)**
+
+- **思路**：**因为数组有序，所以重复元素必近邻**，只用让**慢指针指向最后一个非重复元素的位置，快指针寻找与前面不重复的第一个元素**即可 -- 时间复杂度 $O(n)$；
+
+- **注意**：最后**返回移除后数组的新长度。不要求改变数组长度，只需保证前 k 个元素是去重后的结果。**，而 `slow` 指针指向最后一个非重复元素的位置，所以**返回的长度为 `slow + 1`**；
+
+---
+
+## 4. 题号：27 -- 移除元素（简单）
+### 4.1 正确解法(自己写的，这次一次过，和上一次思路基本一致)
+```cpp
+class Solution {
+public:
+    int removeElement(vector<int>& nums, int val) {
+        int slow = 0;
+        for (int fast = 0; fast < nums.size(); ++fast) {
+            if (nums[fast] != val) {
+                nums[slow] = nums[fast];
+                ++slow;
+            }
+        }
+        return slow;
+    }
+};
+```
+
+- **关键词**：**快慢指针(覆盖式)**；
+
+- **思路**：不等于val的值放在前半部分，只返回慢指针的计数即为不等于 val 的元素数量(k)（其余元素和 nums 的大小并不重要）;
+
+- **注意**：这里的 **慢指针指向最后一位待改变的位置，所以其值即为不等于 val 的元素数量(k)**，所以最后返回 `slow` 即可；
+
+---
+
+## 5. 题号：88 -- 合并两个有序数组（简单）
+### 5.1 错误解法(自己写的，错误的迭代其实用)
+```cpp
+class Solution {
+public:
+    void merge(vector<int>& nums1, int m, vector<int>& nums2, int n) {
+        auto it1 = nums1.begin(), it2 = nums2.begin();
+        for(; it1 != nums1.end() && it2 != nums2.end(); ) {
+            if (*it1 <= *it2) {
+                ++it1;
+            } else {
+                nums1.insert(it1 - 1, *it2);        // 插入操作后，迭代器失效，下面的 ++it1 是未定义行为
+                ++it1;
+                ++it2;
+            }
+        }
+        // 插入剩余部分, 只用检查 it1 是否到达末尾
+        if (it1 == nums1.end()) {
+                nums1.insert(it1, it2, nums2.end());
+        }
+    }
+};
+```
+
+- **思路**：用迭代器**从第一个位置依次比较(数组有序)** `nums1` 和 `nums2` 各个元素的大小，从而把 `nums2` 每一个元素插入 `nums` ;
+
+- **错误点**：当 `insert` 未导致重新分配时，**插入点之后的所有迭代器失效，插入点之前的迭代器保持有效**。由于 it1 指向的元素位于插入点（it1-1）之后，所以 it1 失效；之后 `++it1` 是未定义行为；
+
+
+### 5.2 正确解法及分析
+代码如下：
+```cpp
+class Solution {
+public:
+    void merge(vector<int>& nums1, int m, vector<int>& nums2, int n) {
+        int i = m - 1, j = n - 1, k = m + n - 1;
+        while (i >= 0 && j >= 0) {
+            if (nums1[i] > nums2[j]) {
+                nums1[k--] = nums1[i--];
+            } else {
+                nums1[k--] = nums2[j--];
+            }
+        }
+        // 如果 nums2 还有剩余(m < n), 则把 nums2 剩余部分加入 nums1
+        while (j >= 0) {
+            nums1[k--] = nums2[j--];
+        }
+    }
+};
+```
+
+- **知识点(关键词)**：**三指针**，**原地操作**
+
+- **思路**：**从nums1和nums2后面开始比，谁大就放最后面（因为nums1固定长 m+n，一定能填满）**，其中：
+
+    * `i` 从后往前依次指向 `nums1` 的各个元素
+    * `j` 从后往前依次指向 `nums2` 的各个元素
+    * `k` 从后往前指向下一个可赋值的位置；
+
+- **注意**：只用**检查 `nums2` 是否有元素剩余(i <= j)**，不用检查 `nums1`，因为就是**在 `nums1` 上进行的原地操作**；
+---
+
+## 6. 题号：217 -- 存在重复元素（简单）
+### 6.1 正确解法(一次通过，嚯嚯哈嘿)
+```cpp
+class Solution {
+public:
+    bool containsDuplicate(vector<int>& nums) {
+        unordered_map<int, int> mp;
+        for (int i = 0; i < nums.size(); ++i) {
+            if (mp.find(nums[i]) != mp.end()) {
+                return true;
+            }
+            mp[nums[i]] = i;
+        }
+        return false;
+    }
+};
+```
+
+- **关键词**：**哈希表**
+
+- **思路**：用哈希表存 `pair` (对) `value - index`，如果在哈希表中找到了与当前 `i` 对应元素相同的元素，则直接返回 `true`(退出循环)，如果遍历完所有元素，在哈希表中没有找到与之前相同的元素，则返回 `false`;
+
+---
+
+## 7. 题号：136 -- 只出现一次的数字（简单）
+### 7.1 错误解法(自己写的)
+代码如下:
+```cpp
+class Solution {
+public:
+    int singleNumber(vector<int>& nums) {
+        unordered_map<int, int> mp;     // value - index
+        int i;
+        for (i = 0; i < nums.size(); ++i) {
+            if (mp.find(nums[i]) == mp.end()) {
+                break;
+            }
+            mp[nums[i]] = i;
+        }
+        return nums[i];
+    }
+};
+```
+
+- **思路**：使用**哈希表**存取读到过的元素，碰见相同的继续存储；如果在哈希表中找不到与当前 `i` 对应的元素相同的值（元素），则说明找到只出现一次的数字，退出循环，返回当前 `i` 对应的值 `nums[i]`;
+
+- **错误点**：
+1. **逻辑严重错误**：当 `i = 0` 时，进入分支结构，一定会**直接退出循环**，因为当前哈希表为空，一定没有相同的值；
+2. **潜在错误**：`i` 没有初始化，若函数输入为空数组，则循环体不会执行，最后直接 `return nums[i]` 属于 **未定义行为**
+
+> **最终该题没有想出答案！！！**
+
+### 7.2 正确解法及分析
+代码如下：
+```cpp
+class Solution {
+public:
+    int singleNumber(vector<int>& nums) {
+        int result = 0;
+        // 遍历数组，不断异或
+        // 成对出现的元素互相抵消（x ^ x = 0）
+        // 最终 result 就是那只出现一次的元素
+        for (int x : nums) {
+            result ^= x;
+        }
+        return result;
+    }
+};
+```
+
+- **知识点(关键词)**：**位运算(异或运算)**
+
+- **思路**：让**重复元素之间相互抵消**，而 **$0 \times a = a$**(给 `result` 赋值用于后续相同元素的计算)，最后的 result 必定为唯一的元素；
+
+* 如果用哈希表统计频率，时间 O(n)、空间 O(n) 可以轻松解决。但题目要求常量空间，哈希表不符合。
+
+```
+题目中用到的异或运算(不同才为真)：
+a ^ 0 = a;（满足交换律，即 0 ^ a = a）
+a ^ a = 0;
+a ^ b = a;
+```
+
+### 7.3 位运算补充
+在 C 和 C++ 中，位运算直接操作整数的二进制位，效率高，常用于底层编程、标志位管理、加密等场景。下面列出所有位运算符的符号及其计算方法。
+
+---
+
+#### 1. 按位与 `&`
+- **符号**：`&`
+- **规则**：对应位都是 1 时结果为 1，否则为 0。
+- **真值表**：  
+  `1 & 1 = 1`  
+  `1 & 0 = 0`  
+  `0 & 1 = 0`  
+  `0 & 0 = 0`
+- **示例**（以 8 位为例）：  
+  `0b1100 & 0b1010 = 0b1000` (12 & 10 = 8)
+
+---
+
+#### 2. 按位或 `|`
+- **符号**：`|`
+- **规则**：对应位至少有一个为 1 时结果为 1，否则为 0。
+- **真值表**：  
+  `1 | 1 = 1`  
+  `1 | 0 = 1`  
+  `0 | 1 = 1`  
+  `0 | 0 = 0`
+- **示例**：  
+  `0b1100 | 0b1010 = 0b1110` (12 | 10 = 14)
+
+---
+
+#### 3. 按位异或 `^`
+- **符号**：`^`
+- **规则**：对应位不同时结果为 1，相同时为 0。
+- **真值表**：  
+  `1 ^ 1 = 0`  
+  `1 ^ 0 = 1`  
+  `0 ^ 1 = 1`  
+  `0 ^ 0 = 0`
+- **示例**：  
+  `0b1100 ^ 0b1010 = 0b0110` (12 ^ 10 = 6)
+
+---
+
+#### 4. 按位取反 `~`
+- **符号**：`~`（一元运算符）
+- **规则**：将每一位取反，0 变 1，1 变 0。
+- **注意**：结果受整型提升影响，通常按补码表示，负数会参与运算。
+- **示例**（8 位有符号整数，实际 C 中会提升到 int）：  
+  `~0b00001100 = 0b11110011` (在有符号 8 位下，~12 = -13)
+
+---
+
+#### 5. 左移 `<<`
+- **符号**：`<<`
+- **规则**：`a << b` 将 `a` 的二进制位向左移动 `b` 位，右端补 0。  
+  等价于 `a * 2^b`（在不溢出且无符号数的前提下）。
+- **注意**：有符号数的左移若导致符号位改变，属于**未定义行为**（C/C++ 标准）。通常建议仅对无符号数使用左移。
+- **示例**：  
+  `0b0011 << 2 = 0b1100` (3 << 2 = 12)
+
+---
+
+#### 6. 右移 `>>`
+- **符号**：`>>`
+- **规则**：`a >> b` 将 `a` 的二进制位向右移动 `b` 位。
+  - **无符号数**：左端补 0（逻辑右移）。
+  - **有符号数**：行为由实现定义（通常是算术右移，即左端补符号位，负数会保持负号）。
+- **示例**（假设采用算术右移）：  
+  `0b1100 >> 2 = 0b0011` (12 >> 2 = 3)  
+  `-8 >> 1` 在补码系统中可能等于 -4。
+
+---
+
+#### 7. 复合赋值位运算符
+- **符号**：`&=`, `|=`, `^=`, `<<=`, `>>=`
+- **规则**：`a &= b` 等价于 `a = a & b`，其他类似。
+- **示例**：  
+  `int a = 5; a |= 2;` → `a` 变为 7。
+
+---
+
+#### 8. 注意事项
+- **整型提升**：位运算的操作数会先被提升为 `int` 或 `unsigned int`。例如 `char` 运算时实际按 `int` 进行。
+- **未定义/实现定义行为**：
+  - 左移溢出符号位：未定义（C++20 对无符号明确定义，但有符号仍为未定义）。
+  - 有符号负数的右移：结果依赖实现，可移植代码应避免。
+  - 移位位数大于等于类型宽度（如 `int` 左移 32 位）：未定义行为。
+- **优先级**：`~` 优先级较高，`<<` `>>` 次之，`&` 高于 `^` 高于 `|`。建议用括号明确顺序。
+
+---
+
+掌握这些位运算符，可以高效地完成置位、清零、翻转、提取特定位等操作。
+
+## 8. 题号：169 -- 多数元素（简单）
+### 8.1 错误解法（自己写的）
+代码如下：
+```cpp
+class Solution {
+public:
+    int majorityElement(vector<int> nums) {
+        unordered_map<int, int> mp;         // value - frequency
+        for (int i = 0; i < nums.size(); ++i) {
+            if (mp.find(nums[i]) != mp.end()) {
+                ++mp[nums[i]];
+            } else {
+                mp[nums[i]] = 1;
+            }
+        }
+        // 范围 for 遍历哈希表
+        for (const auto pair : mp) {
+            if (pair.second > nums.size() / 2) {
+                return pair.first;
+            }
+        }
+    }
+};
+```
+
+- **思路**（✅）：用**哈希表**存储每个值出现的次数，之后遍历哈希表，找出出现次数大于 `n / 2` 的值(`nums[i]`);
+
+- **错误点**（无逻辑错误）：
+1. 在构建哈希表的 `for` 循环中，代码太过复杂，哈希表的 `int` **默认初始化就是 0**，直接每个元素值(`pair.first`)对应的 `pair.second` 自增就行，且**范围 `for`** 代码量更少；
+2. **如果数组为空或无解，函数结束无 `return`**。
+* 虽然我想到了大的作用域没有返回，但是：一、题目明确说明`假设数组是非空的，并且给定的数组总是存在多数元素。`；二、返回 `0` 或 `-1` 都可能是数组中出现最多次的元素，如果返回这两个值，则当数组中出现最多次的元素是 `0` 或 `-1` 时，**无法判断究竟是找到了多数元素还是数组为空或无解的情况**，所以最后我没有加返回；
+* 实际上，就像我说的，题目明确：`假设数组是非空的，并且给定的数组总是存在多数元素。`，所以**可以返回任意值，因为题目总是有解的**，而工程实践中，碰到数组为空或者无解的情况，可以**使用 `throw` 抛出错误**，但是这里做算法题就以简便为主，直接 `return -1`；
+
+改正后的**正确代码**：
+```cpp
+class Solution {
+public:
+    int majorityElement(vector<int>& nums) {
+        unordered_map<int, int> mp;         // value - frequency
+        for (auto num : nums) {
+            ++mp[num];                      // mp[num] 默认为 0
+        }
+        // 范围 for 遍历哈希表
+        for (const auto& pair : mp) {
+            if (pair.second > nums.size() / 2) {
+                return pair.first;
+            }
+        }
+        return -1;                          // 若实际情况，数组最多的元素为 -1 则无法保证结果，但是题目明确数组非空且存在多数元素，这样写更简便，工程可以用 throw 抛出错误
+    }
+};
+```
+
+- 上述算法：**时间复杂度$O(n)$，空间复杂度$O(n)$**。
+
+## 9. 题号：206 -- 反转链表（简单）
+### 9.1 错误解法(自己写的)
+```cpp
+// 思路1：重新构造一个 head2 从 head 后面开始给 head2 赋值(非原地操作)
+class Solution {
+public:
+    ListNode* findFinal(ListNode *head) {
+        ListNode *p = head->next;
+        while (p->next) {
+            p = p->next;
+        }
+        return p;
+    }
+    ListNode* reverseList(ListNode *head) {
+        ListNode head2;
+        ListNode *p = head->next;
+        // 循环需要使用递归(单链表，无前驱指针)：先把最后一个结点(next=nullptr)的结点插入到 head2 的 next
+        while (p) {
+            
+        }
+    }
+};
+```
+- **关键词**：**递归**，**非原地操作**，**尾插法**
+- **思路**(❌)：重新构造一个 head2 从 head 后面**尾插法**给 head2 赋值;（过于麻烦，且效率低O(n^2)）
+
+### 9.2 正确解法及分析
+#### 9.2.1 解法一： **非递归非原地头插**
+代码如下：
+```cpp
+class Solution {
+public:
+    ListNode* reverseList(ListNode* head) {
+        ListNode *head2 = nullptr;
+        ListNode *p = head;
+        while (p) {
+            ListNode *newNode = new ListNode(p->val);
+            // 头插
+            newNode->next = head2;
+            head2 = newNode;
+            p = p->next;
+        }
+        return head2;
+    }
+};
+```
+
+- **知识点(关键词)**：**头插法**
+
+- **思路**：从 `head` 的第一个元素开始，头插进 `head2` 中，就实现了倒序
+
+#### 9.2.2 解法二：**原地递归**
+```cpp
+class Solution {
+public:
+    ListNode* reverseList(ListNode* head) {
+        if (!head || !head->next) return head;       // 递归基，即最后一层递归终止
+        // newHead 始终是原链表的最后一个节点
+        ListNode *newHead = reverseList(head->next);
+        // 让反转后的子链表的最后一个结点指向 当前递归层 的 head
+        head->next->next = head;
+        head->next = nullptr;
+        return newHead;
+    }
+};
+```
+
+- **知识点(关键词)**：**递归**，**原地操作**
+
+- **思路**：要求 `head` 的倒序链表 `->` 先求 `head->next` 的倒序链表 `->` 先求 `head->next->next` 的倒序链表 `->` ... `->` 递归基，然后一层层**倒退**，直至求出 `head` 的倒序链表（这里的 **`head` 是同一个**）
+
+- **`head->next->next = head`** 的理解：**将 `head` 尾插到反转后的子链表**(除去 `head`)。`head` 是**每一层递归调用传入的 `head`**，**`head->next` 指向反转后的子链表(除去 `head`)的最后一个结点**
+
+## 10. 题号：21 -- 合并两个有序链表（简单）
+### 10.1 错误解法(自己写的)
+```cpp
+class Solution {
+public:
+    ListNode* mergeTwoLists(ListNode* list1, ListNode* list2) {
+        if (list1->val > list2->val) {
+            ListNode *temp = list2;
+            temp->next = list1->next;
+            list1->next = temp;
+            ++list1;
+            ++list2;
+        } else {
+            ++list1;
+        }
+        while (list2) {
+            list1->next = list2;
+        }
+        return list1;
+    }
+};
+```
+
+- **思路**(**`严重错误`**)：在 `list1` 链表中**原地操作**，使用临时变量 `temp` 先复制为当前 `list2`，便于之后用于完成插入，最后更新 `list1` 和 `list2`，如果 `list2` 的值更大，则更新 `list1`;
+
+> 使用 `temp = list2`，**本质 temp 和 list2 指向同一个位置**，对 `temp` 的操作已经造成**链表断裂，结点丢失**了，实际上，`temp` 没有发挥任何作用。
+
+- **错误点**：
+1. **逻辑错误(`特错大错`)**：
+
+(1) **`++list1` 和 `++list2` 只有对于连续空间的指针才适用**，对于**链表**，存储空间不连续，不能使用自增运算符，**应该使用 `next` 域迭代**；
+
+(2) 链接剩余部分的代码，**`list2` 永运不为 `nullptr`，陷入死循环**；
+
+(3) **分支结构外没有循环**；
+
+(4) **头结点丢失**，在其中更新了 `list1`，更新 `list1` 后 `list1` 就不能作为返回值；
+
+(5) **未处理空链表**；
+
+(6) **尾连接不安全**：list 可能也为 `nullptr` 了；
+
+(7) **指针移动错误，造成覆盖**：应该先更新 `list2`，否则 `list1` 的更新会覆盖 `list2`
+
+...
+
+### 10.2 正确解法及分析
+代码如下：
+```cpp
+class Solution {
+public:
+    ListNode* mergeTwoLists(ListNode* list1, ListNode* list2) {
+        if (!list1) return list2;
+        if (!list2) return list1;
+        ListNode dumy(0);                   // dumy 为头指针(虚拟头节点)
+        ListNode *tail = &dumy;             // tail 永远指向最后一个元素
+        while (list1 && list2) {
+            if (list1->val <= list2->val) {
+                tail->next = list1;
+                list1 = list1->next;
+            } else {
+                tail->next = list2;
+                list2 = list2->next;
+            }
+            tail = tail->next;
+        }
+        // 链接剩余部分
+        tail->next = list1 ? list1 : list2;
+        return dumy.next;
+    }
+};
+```
+
+- **知识点(关键词)**：**虚拟头节点(头指针)**
+
+- **思路**：虚拟头节点即头指针用于返回链表，尾指针 `tail` 永远指向构造的链表的最后一个元素，用于把 `list1` 和 `list2` 的元素放入新构造的链表，**本质是 `改变` 链表各个结点的连接顺序，算作原地操作**；
