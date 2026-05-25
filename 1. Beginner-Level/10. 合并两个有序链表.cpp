@@ -5,9 +5,9 @@ using namespace std;
 struct ListNode {
     int val;
     ListNode *next;
-    ListNode(): val(0), next(nullptr) {};               // 默认构造
-    ListNode(int x): val(x), next(nullptr) {};          // 有参构造
-    ListNode(int x, ListNode *n): val(x), next(n) {};   // 有参构造
+    ListNode(): val(0), next(nullptr) {};               
+    ListNode(int x): val(x), next(nullptr) {};         
+    ListNode(int x, ListNode *n): val(x), next(n) {};  
 };
 
 // 错误写法：
