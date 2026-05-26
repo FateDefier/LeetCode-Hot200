@@ -60,3 +60,21 @@ public:
         return newHead;
     }
 };
+
+// 解法三(更推荐)：双指针
+class Solution {
+public:
+    ListNode* reverseList(ListNode* head) {
+        if (head == nullptr || head->next == nullptr) {
+            return head;
+        }
+        ListNode *prev = nullptr, *curr = head;
+        while (curr != nullptr) {
+            ListNode *nxt = curr->next;         // 便于 curr 右移，防止断链
+            curr->next = prev;                  // 掉头
+            prev = curr;                        // prev 右移
+            curr = nxt;                         // curr 右移
+        }
+        return prev;
+    }
+};
