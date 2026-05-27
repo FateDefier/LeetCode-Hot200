@@ -659,3 +659,992 @@ public:
 - **知识点(关键词)**：**虚拟头节点(头指针)**
 
 - **思路**：虚拟头节点即头指针用于返回链表，尾指针 `tail` 永远指向构造的链表的最后一个元素，用于把 `list1` 和 `list2` 的元素放入新构造的链表，**本质是 `改变` 链表各个结点的连接顺序，算作原地操作**；
+
+## 11. 题号：141 -- 环形链表（简单）
+### 11.1 错误解法(自己写的)
+```cpp
+class Solution {
+public:
+    bool hasCircle(ListNode *head) {
+        unordered_map<int, int> mp;         // value - index
+        ListNode *p = head;
+        int i = 1;
+        while (p) {
+            if (mp.find(p->val) != mp.end()) {
+                return true;
+            }
+            mp[p->val] = i;
+            ++i;
+        }
+        return false;
+    }
+};
+```
+
+- **思路**(**严重逻辑错误**)：通过哈希表建立 “value - 出现顺序” 映射，在哈希表中找到当前值，说明找到重复值，存在环，`return false`;经历完循环没有 `return false`，说明没有环，返回 `true`；
+
+- **错误点**：
+1. **逻辑错误**：
+
+- 如果链表中**不同节点具有相同的值**，即使链表完全没有环，程序也会错误地返回 `true`。
+
+- 反之，如果链表**确实有环，但环上的节点值都不重复**，程序反而检查不出来，会陷入死循环或遍历到环上一直找不到重复值（因为没记录地址），但实际上因为 while(p) 不会终止，会无限循环。同时 p 永远不会为 nullptr，这会导致超时或崩溃。；
+
+### 11.2 正确解法1 -- 哈希表
+代码如下：
+```cpp
+class Solution {
+public:
+    bool hasCircle(ListNode *head) {
+        unordered_set<ListNode*> visited;       // 用集合存结点指针(地址)
+        ListNode *p = head;
+        while (p) {
+            if (visited.count(p)) {             // 查找集合中是否有等于 p 的值(这里为地址)，只可能为 0 或 1(集合不允许有重复值)，这里也可以用visited.find(p) != visited.end()
+                return true;
+            }
+            visited.insert(p);
+            p = p->next;
+        }
+        return false;
+    }
+};
+```
+
+- **知识点(关键词)**：**哈希表(unordered_set)**
+
+- **思路**：判断链表是否有环，唯一可靠的标准是**节点的内存地址是否重复出现**；
+
+- **时间复杂度 -- $O(n)$，空间复杂度 -- $O(n)$**
+
+### 11.3 正确解法2 -- 快慢指针
+```cpp
+class Solution {
+public:
+    bool hasCircle(ListNode *head) {
+        ListNode *slow = head, *fast = head;
+        while (fast && fast->next) {
+            slow = slow->next;
+            fast = fast->next->next;
+            if (slow == fast) {
+                return true;
+            }
+        }
+        return false;
+    }
+};
+```
+
+- **知识点**：**快慢指针**，**Floyd 判圈法**，**龟兔赛跑算法**
+
+- **思路**：**`fast` 永远跑不到终点，反而会在环内兜圈，一直循环，总会有和 `slow` 相遇的时候**
+
+- **时间复杂度 -- O(n)，空间复杂度 -- O(1)**
+
+> **说明**：
+>
+> 1.**无环时**，`fast` 每次走两步，大约需要 n/2 次循环，`slow` 也走 n/2 步，总共走 1.5 步，**循环次数 n/2 次**；
+> 2.**有环时**，
+> 
+> **最坏情况**：**慢指针入环后，需要在环里走很远才能被快指针追上**。
+> 
+> **发生的条件**：
+> 
+> 1.**环入口离链表头部非常远**（接近 n，这里 n 是节点总数）。
+> 
+> 2.并且 **慢指针入环时，快指针刚好领先它 1 步**（或者更广义地说，慢指针需要跑**几乎**一整圈(环长度为 b，实际走 b-1 次)环才能被追上）。
+> 
+> 此时 `slow` 走约 n 步，`fast` 走约 2n 步，总共走约 3n 步，**循环次数 n-1 次**；
+
+- **可优化**：
+1. **提前判断**：若只有 0 或 1 个结点，必定无环；
+2. **初始化优化**：在初始化时就让 `fast` 领先 `slow` 一步；**循环次数 - 1**；
+
+### 11.4 最终优化版本(考虑边界条件)
+```cpp
+class Solution {
+public:
+    bool hasCircle(ListNode *head) {
+        if (!head || !head->next) {
+            return false;
+        }
+        ListNode *slow = head, *fast = head->next;
+        while (fast && fast->next) {
+            if (slow == fast) {
+                return true;
+            } else {
+                slow = slow->next;
+                fast = fast->next->next;
+            }
+        }
+        return false;
+    }
+};
+```
+
+## 12. 题号：160 -- 只出现一次的数字（简单）
+### 12.1 正确解法(自己写的)
+```cpp
+class Solution {
+public:
+    ListNode *getIntersectionNode(ListNode *headA, ListNode *headB) {
+        if (!headA || !headB) {
+            return nullptr;
+        }
+        ListNode *p = headA;
+        ListNode *q = headB;
+        unordered_set<ListNode*> setA;
+        while (p) {
+            setA.insert(p);
+            p = p->next;
+        }
+        while (q) {
+            if (setA.count(q)) {
+                return q;
+            }
+            q = q->next;
+        }
+        return nullptr;
+    }
+};
+```
+
+- **思路**：遍历链表 A，把其所有地址加入哈希表中，然后遍历链表 B，在哈希表中查看是否有 B 的各个元素的地址，有则返回该结点的地址，若遍历完 B 仍然哈希表仍然没有找到，则返回 `nullptr`;
+
+- **时间复杂度 -- $O(m + n)$，空间复杂度 -- $O(m)$(可以看 m 和 n 谁更小适当调整)**
+
+### 12.2 正确解法二(更优)
+代码如下：
+```cpp
+if (headA == nullptr || headB == nullptr) {
+            return nullptr;
+        }
+        ListNode *pA = headA, *pB = headB;
+        while (pA != pB) {
+            pA = (pA == nullptr) ? headB : pA->next;
+            pB = (pB == nullptr) ? headA : pB->next;
+        }
+        // 要么相交必相遇 pA = pB = 交点地址，要么不相交 pA = pB = nullptr
+        return pA;
+```
+
+- **知识点**：**双指针**
+
+- **思路**：假设链表 `A` 的长度为 `a`，链表 `B` 的长度为 `b`，它们相交部分的长度为 `c`（不相交则 c=0），**`pA` 和 `pB` 走的步数相同(相交必相遇)，要么走 `a + b` 步(不相交，两个指针均走完两个链表)，要么走 `a + b - c` 步(相交)**；
+
+## 13. 题号：234 -- 回文链表（简单）
+### 13.1 错误解法(自己写的)
+```cpp
+class Solution {
+public:
+    bool isPalindrome(ListNode *head) {
+        if (!head || !head->next) {
+            return false;
+        }
+        ListNode *head2 = new ListNode;
+        ListNode *p = head->next, *pre = head, *q = head2->next;
+        while (p) {
+            // 头插法使回文链表前半段倒序
+            ListNode *newNode = new ListNode(p->val, q);
+            if (pre->val == p->val) {
+                break;
+            }
+            q = newNode;
+            p = p->next;
+            pre = pre->next;
+        }
+        while (p) {
+            if (q->val == p->val) {
+                q = q->next;
+                p = p->next;
+            } else {
+                return false;
+            }
+        }
+        return true;
+    }
+};
+```
+
+- **思路**：通过**头插法**重新创建一个链表存储**半个回文链表的倒叙序列**，然后比较与剩下的半个序列逐元素比较是否相同;
+
+- **错误点**：
+1. **逻辑错误**：(1) **找中点的方式完全错误**(比如 `1 2 3 2 1` 是回文，但中间 `3` 没有配对，不会触发相等；)(2) **构建“反转前半部分”的过程遗漏了头节点**；
+2. **语法错误**：(1) **内存泄露风险**：`new` 之后没有 `delete`；**其他错误略**
+
+### 13.2 正确解法1 -- 数组拷贝
+代码如下：
+```cpp
+class Solution {
+public:
+    bool isPalindrome(ListNode *head) {
+        if (head == nullptr || head->next == nullptr) {
+            return true;                // 空链表和单元素默认回文
+        }
+        vector<int> vals;                // 自动管理长度
+        ListNode *curr = head;
+        while (curr != nullptr) {
+            vals.push_back(curr->val);
+            curr = curr->next;
+        }
+        // 数组双指针判断是否回文
+        int left = 0, right = (int)vals.size() - 1;
+        while (left < right) {          // 循环终止条件是 left < right，不能写成 left != right(奇数满足，偶数不满足)
+            if (vals[left] != vals[right]) {
+                return false;
+            }
+            ++left;
+            --right;
+        }
+        return true;
+    }
+};
+```
+
+- **知识点**：**数组拷贝**，**数组双指针**；
+
+- **时间复杂度 -- $O(n)$，空间复杂度 -- $O(n)$**
+
+- **思路**：遍历链表将值拷贝到数组中，然后用**在数组中利用双指针**判断数组是否为回文（用 `C 语言` 实现手动管理内存需**多遍历一次链表以求得数组的长度**）;
+
+### 13.3 正确解法 2 -- 栈
+代码如下：
+```cpp
+class Solution {
+public:
+    bool isPalindrome(ListNode *head) {
+        if (head == nullptr || head->next == nullptr) {
+            return true;                
+        }
+        stack<int> vals;
+        ListNode *curr = head;
+        while (curr != nullptr) {
+            vals.push(curr->val);
+            curr = curr->next;
+        }
+        curr = head;
+        while (curr != nullptr) {
+            int val = vals.top();
+            vals.pop();                 // 出栈不返回值
+            if (curr->val != val) {
+                return false;
+            }
+            curr = curr->next;
+        }
+        return true;
+    }
+};
+```
+
+- **知识点**：**数组拷贝**，**数组双指针**；
+
+- **时间复杂度 -- $O(n)$，空间复杂度 -- $O(n)$**
+
+- **思路**：遍历链表将值拷贝到栈(**stack**)中，然后不断获取栈顶元素(**别忘了出栈**)与链表元素比较;
+
+### 13.3 正确解法 3 -- 反转后段链表(最优解法)
+代码如下：
+```cpp
+class Solution {
+public:
+    // 反转链表 -- 参考题 9 反转链表
+    ListNode* reverseList(ListNode *head) {
+        ListNode *prev = nullptr, *curr = head;
+        while (curr != nullptr) {
+            ListNode *tmp = curr->next;
+            curr->next = prev;
+            prev = curr;
+            curr = tmp;
+        }
+        return prev;
+    }
+
+    bool isPalindrome(ListNode *head) {
+        if (head == nullptr || head->next == nullptr) {
+            return true;                
+        }
+        // 1.快慢指针找中点，参考题 11 环形链表 
+        ListNode *slow = head, *fast = head;
+        while (fast->next != nullptr && fast->next->next != nullptr) {          // 注意循环终止条件
+            slow = slow->next;
+            fast = fast->next->next;
+        }
+        // 2. 反转链表，slow->next 为后半段头结点
+        ListNode *secondHalf = reverseList(slow->next);
+        // 3.判断回文
+        ListNode *p1 = head;
+        ListNode *p2 = secondHalf;       //  防止头结点丢失并便于反转还原
+        while (p2 != nullptr) {         //  后半段 可能少一个元素，用 p2 判断
+            if (p1->val != p2->val) {
+                return false;
+            }
+            p1 = p1->next;
+            p2 = p2->next;
+        }        
+        // 4.还原(再次反转)后半段
+        // slow->next = reverseList(secondHalf);
+        return true;
+    }
+};
+
+```
+
+- **知识点**：**三指针反转**，**快慢指针找中点**
+
+- **思路**：见代码；
+
+> **注意**：**慢指针 奇数停留在唯一值的位置，偶数停留在前半段的末尾**，保证了 slow->next 是后半段的头结点(**奇数时反转后前半段的最后的唯一值不会比较(循环判断条件)**，因为前半段长度 n+1/2, 后半段长度 n-1/2，刚好差 1)
+
+- **时间复杂度 -- $O(n)，空间复杂度 -- $O(1)$**
+
+## 14. 题号：20 -- 有效的括号（简单）
+### 14.2 正确解法(这题很简单，严书中有括号匹配(C实现)，但是这个用C++实现)
+代码如下：
+```cpp
+class Solution {
+public:
+    bool isValid(string s) {
+        stack<char> left;
+        for (char ch : s) {
+            if (ch == '(' || ch == '[' || ch == '{') {
+                left.push(ch);
+                continue;                   // 退出本次循环，避免下面不必要的判断
+            } 
+            if (ch == ')' || ch == ']' || ch == '}') {
+                // 注意，这里栈若为空，直接返回
+                if (left.empty()) return false;
+                char top = left.top();
+                left.pop();
+                if ((ch == ')' && top == '(') || (ch == ']' && top == '[') || (ch == '}' && top == '{')) {
+                    continue;
+                } else {
+                    return false;
+                }
+            }
+        }
+        return left.empty();            // 注意:栈空才合法
+    }
+};
+```
+
+- **知识点**：**栈**；
+
+- **时间复杂度 -- $O(n)$，空间复杂度 -- $O(n)$**
+
+- **思路**：左括号进栈，碰到右括号则取栈顶元素看是否匹配(**内层括号先匹配**);
+
+- **注意**：
+1. **两处对栈空的判断**：第一处：**避免只有左括号的情形**；第二处(返回)：**避免有多余右括号的情形**；
+2. **==优化技巧==**：对左括号的进栈操作处，此时 `ch` 已经是左括号，没必要继续判断后面的是否为右括号，直接 `continue` 退出本轮循环，**避免不必要的判断**；
+
+## 15. 题号：155 -- 最小栈（中等）
+### 15.1 解法 1 -- vector(本题最优)
+```cpp
+class MinStack {
+private:
+    vector<int> stack;      // 用数组表示栈 -- 非尾部插入删除开销大
+    vector<int> mins;       // 所有的最小值，有重复
+public:
+    MinStack() {            // 默认构造
+
+    }
+
+    void push(int val) {
+        stack.push_back(val);
+        if (mins.empty()) {
+            mins.push_back(val);
+        } else {
+            mins.push_back(mins.back() > val ? val : mins.back());
+        }
+    }
+
+    void pop() {
+        if (!stack.empty()) {
+            stack.pop_back();
+            mins.pop_back();
+        }
+    }
+
+    int top() {
+        return stack.back();
+    }
+
+    int getMin() {
+        return mins.back();
+    }
+
+    // 自动析构
+};
+```
+
+- **知识点**：**vector容器**；
+
+- **思路**：一个 `vector` 存数据，一个每次加入一个当前的最小值(**不维护一个**方便出栈管理);
+
+- **注意**：
+1. `vector` 在**非尾部的插入删除开销大**(如 `insert(pos, val)`, `erase(pos)`, `pop_front()`)，**`push_back`分摊 O(1)**，但**更省内存空间(用一个中控器（指针数组）管理多个固定大小的块)**
+
+### 15.2 解法 2 -- stack
+代码如下：
+```cpp
+class MinStack {
+private:
+    stack<int> s;
+    stack<int> mins;        // 最小值栈
+public:
+    MinStack() {            // 默认构造
+        mins.push(INT_MAX); // mins push 时不用判断栈空 -- 哨兵
+    }
+
+    void push(int val) {
+        s.push(val);
+        mins.push(val < mins.top() ? val : mins.top());
+    }
+
+    void pop() {
+        s.pop();
+        mins.pop();
+    }
+
+    int top() {
+        return s.top();
+    }
+
+    int getMin() {
+        return mins.top();
+    }
+
+    // 自动析构
+};
+```
+
+- **知识点**：**stack容器**；
+
+- **思路**：同上;
+
+- **优化部分**：使用哨兵，提前放入 `INT_MAX`，后续元素 `val` 只可能小于等于 `INT_MAX`，这样就**不用每次判断栈空**了；（`vector` 可同理优化）；
+
+### 15.3 解法 3 -- 差值栈 + int min
+代码如下：
+```cpp
+class MinStack {
+private:
+    stack<long long> diffstack;         // 用 long long 防止 int 减法溢出(如 INT_MAX - (-1)) -- 存 val - 当前最小值的 差值
+    long long min;                      // 当前最小值
+public:
+    MinStack() {            
+        
+    }
+
+    void push(int val) {
+        long long v = val;              // 类型转换
+        if (diffstack.empty()) {
+            min = v;
+            diffstack.push(0LL);        // 第一个元素差值为 0(long long类型)
+        } else {
+            diffstack.push(v - min);
+            if (v < min) {
+                min = v;
+            }
+        }
+    }
+
+    void pop() {
+        long long diff = diffstack.top();           // diff = val(当前最小) - min(上一个最小)
+        diffstack.pop();
+        if (diff < 0) {
+            // 如果栈顶元素即是“创造了新低”的元素(存差值)，则出栈需更新min到上一个最小值
+            min = min - diff;
+        }
+        // diff > 0 则说明栈顶元素不是“创造了新低”的元素
+    }
+
+    int top() {
+        long long diff = diffstack.top();
+        if (diff < 0) {
+            return (int)min;            // 注意类型转换
+        } else {
+            return (int)(min + diff);
+        }
+    }
+
+    int getMin() {
+        return min;
+    }
+
+    // 自动析构
+};
+```
+
+- **知识点**：**差值栈**，**long long**；
+
+- **思路**：看代码;
+
+- **优化部分**：**时间复杂度 -- $O(1)$，(额外)空间复杂度 -- $(1)$**
+
+## 16. 题号：232 -- 用栈实现队列（简单）
+### 16.1 解法
+```cpp
+class MyQueue {
+private:
+    stack<int> in;
+    stack<int> out;             // 要用到队头时才把 in 中的元素倒序放入 out
+public:
+    MyQueue() {
+
+    }
+
+    void push(int x) {
+        in.push(x);
+    }
+
+    int pop() {
+        if (out.empty()) {              // out 为空时倒转
+            while (!in.empty()) {
+                out.push(in.top());
+                in.pop();               // 注意，进入 out 的元素记得出 in
+            }
+        }
+        int val = out.top();
+        out.pop();
+        return val;
+    }
+
+    int peek() {
+        if (out.empty()) {
+            while (!in.empty()) {
+                out.push(in.top());
+                in.pop();
+            }
+        }
+        return out.top();
+    }
+
+    bool empty() {                  // 队判空时要检查两个栈：因为 push 时 in 中有元素而 out 为空，pop 时 out 中有元素而 in 为空
+        return in.empty() && out.empty();
+    }
+};
+```
+
+- **思路**：两个栈，**栈 `in` 用于进栈，栈 `out` 用于出栈**，关键点：不用每个元素进栈时都加入 `out` 栈，**只在需要使用到队头元素时(队头出队`pop`和取队头`peek`)把 `in` 中的元素倒装进 `out`**，然后用栈的 `pop` 和 `top` 即可完成相应操作;
+
+- **注意点**：
+1. **要用到队头时才把 `in` 中的元素倒序放入 `out`**;
+2. **进入 `out` 的元素记得出 `in` (`in.pop()`)**;
+3. **队判空时要检查两个栈：因为 `push` 时 `in` 中有元素而 `out` 为空，`pop` 时 `out` 中有元素而 `in` 为空**;
+
+## 17. 题号：225 -- 用队列实现栈（简单）
+### 17.1 错误解法(自己写的)
+```cpp
+class MyStack {
+private:
+    queue<int> in;
+    queue<int> out;
+
+    void in2out () {
+        if (out.empty()) {
+            while (!in.empty()) {
+                out.push(in.front());
+                in.pop();
+            }
+        }
+    }
+public:
+    MyStack() {
+
+    }
+
+    void push(int x) {
+        in.push(x);
+    }
+
+    int pop() {
+        in2out();
+        int val = out.front();
+        out.pop();
+        return val;
+    }
+
+    int top() {
+        in2out();
+        return out.front();
+    }
+
+    bool empty() {
+        return in.empty() && out.empty();
+    }
+};
+```
+
+- **思路**：同上;
+
+- **错误点**：
+1. **逻辑错误**：`push` 将元素放入 `in` 队列，`pop` 时调用 `in2out` 将 `in` 中所有元素按**原顺序转移**到 `out` 队列；
+2. **语法错误**：`in2out` 只在 `out.empty()` 时执行。这会导致混合操作时出现更隐蔽的错误;
+
+### 17.2 正确解法1 -- 两个队列实现(题目要求)
+代码如下：
+```cpp
+class MyStack {
+private:
+    queue<int> q1, q2;          // q1 作主队列，q2 用于记录最后进的元素在 q1 的基础上重新构造 q1
+public:
+    MyStack() {
+
+    }
+
+    void push(int x) {
+        q2.push(x);
+        while (!q1.empty()) {
+            q2.push(q1.front());
+            q1.pop();
+        }
+        swap(q1, q2);           // q1 为主队列(即栈)
+    }
+
+    int pop() {
+        int val = q1.front();
+        q1.pop();
+        return val;
+    }
+
+    int top() {
+        return q1.front();
+    }
+
+    bool empty() {
+        return q1.empty();
+    }
+};
+```
+
+- **思路**：**q1 作主队列(即 ==栈== )，q2 用于记录最后进的元素，并在 q1 的基础上重新构造 q1**;
+
+### 17.3 正确解法 2 (最优) -- 一个队列实现
+代码如下:
+```cpp
+class MyStack {
+private:
+    queue<int> q;
+public:
+    MyStack() {
+
+    }
+
+    void push(int x) {
+        q.push(x);
+        // 旋转：将 x 之前的 栈序列 排到 x 后面
+        for (int i = 0; i < q.size() - 1; ++i) {        // 注意循环结束条件，保证循环执行 n - 1 次，x 不会移动
+            q.push(q.front());
+            q.pop();
+        }
+    }
+
+    int pop() {
+        int val = q.front();
+        q.pop();
+        return val;
+    }
+
+    int top() {
+        return q.front();
+    }
+
+    bool empty() {
+        return q.empty();
+    }
+};
+```
+
+- **思路**：直接让队列存储出栈顺序，**每次添加新元素时，要把新入队的元素 `x` 之前的所有元素排在 `x` 后面，以保证出栈顺序**，即旋转；
+
+## 18. 题号：94 -- 二叉树的中序遍历（简单）
+
+> **思路核心(三种解法同)**：**左子树->根->右子树**;
+
+### 18.1 解法 1 -- 拷贝递归实现(同上)
+```cpp
+class Solution {
+public:
+    vector<int> inorderTraversal(TreeNode *root) {
+        vector<int> res;
+        if (root == nullptr) {              // 递归基
+            return res;
+        }
+        // 左子树结果
+        vector<int> left = inorderTraversal(root->left);
+        res.insert(res.end(), left.begin(), left.end());        // 用 insert 而不用 push_back 时因为 left 是 vector 而不是 元素
+        res.push_back(root->val);
+        // 右子树结果
+        vector<int> right = inorderTraversal(root->right);
+        res.insert(res.end(), right.begin(), right.end());
+        return res;
+    }
+};
+```
+
+- **注意**：
+
+1. 直接使用题目所给函数递归**有返回值，需拷贝最终添加到 `res` 中**;
+2. 添加到 `res` 用 `insert` 而不用 `push_back` 是**因为 `left` 是 `vector` 而不是 元素(push_back)**;
+
+### 18.2 解法 2 -- 借用辅助函数原地递归实现
+代码如下：
+```cpp
+class Solution {
+private:
+    void inorder(TreeNode *root, vector<int> &res) {
+        if (root == nullptr) {              // 递归基
+            return ;
+        }
+        inorder(root->left, res);
+        res.push_back(root->val);
+        inorder(root->right, res);
+    }
+public:
+    vector<int> inorderTraversal(TreeNode *root) {
+        vector<int> res;
+        inorder(root, res);
+        return res;
+    }
+};
+```
+
+> **思路清晰，写递归大推荐**
+
+### 18.3 解法 3 -- 借助栈非递归迭代实现
+代码如下：
+```cpp
+class Solution {
+public:
+    vector<int> inorderTraversal(TreeNode *root) {
+        vector<int> res;
+        stack<TreeNode*> s;
+        TreeNode *curr = root;
+        while (curr != nullptr || !s.empty()) {         // 注意：只有当 curr 为空且栈空时才退出循环
+            // 1.沿着左子树走到底，并每走一步压栈
+            while (curr != nullptr) {
+                s.push(curr);
+                curr = curr->left;
+            }
+            // 2.弹栈并加入 res
+            curr = s.top();
+            s.pop();
+            res.push_back(curr->val);
+            // 3.对右子树重复上述操作
+            curr = curr->right;
+        }
+        return res;
+    }
+};
+```
+
+- **注意点**：循环退出条件：**只有同时满足 curr == nullptr 且 栈空 时才退出循环**;
+
+## 19. 题号：144 -- 二叉树的前序遍历（简单）
+
+> **思路核心(三种解法同)**：**根->左子树->右子树**;
+> 
+> **解法 1、2 同上**，**注意解法 3 的差异**
+
+### 19.1 解法 1 -- 拷贝递归实现
+```cpp
+class Solution {
+public:
+    vector<int> preorderTraversal(TreeNode *root) {
+        vector<int> res;
+        if (root == nullptr) {
+            return res;
+        }
+        res.push_back(root->val);
+        vector<int> left = preorderTraversal(root->left);
+        res.insert(res.end(), left.begin(), left.end());
+        vector<int> right = preorderTraversal(root->right);
+        res.insert(res.end(), right.begin(), right.end());
+        return res;
+    }
+};
+```
+
+### 19.2 解法 2 -- 借用辅助函数原地递归实现
+代码如下：
+```cpp
+class Solution {
+private:
+    void preorder(TreeNode *root, vector<int> &res) {
+        if (root == nullptr) {
+            return ;
+        }
+        res.push_back(root->val);
+        preorder(root->left, res);
+        preorder(root->right, res);
+    }
+public:
+    vector<int> preorderTraversal(TreeNode *root) {
+        vector<int> res;
+        preorder(root, res);
+        return res;
+    }
+};
+```
+
+> **思路清晰，写递归大推荐**
+
+### 19.3 解法 3 -- 借助栈非递归迭代实现
+代码如下：
+```cpp
+class Solution {
+public:
+    vector<int> preorderTraversal(TreeNode *root) {
+        vector<int> res;
+        stack<TreeNode*> s;
+        if (root == nullptr) {
+            return res;
+        }
+        s.push(root);                       // 这里要提前让 root 进栈，否则循环中 curr 为野指针
+        while (!s.empty()) {
+            TreeNode *curr = s.top();
+            s.pop();
+            // 1.先访问根结点
+            res.push_back(curr->val);
+            // 依次把右孩子、左孩子放入栈中(对应顺序左孩子、右孩子出栈)
+            if (curr->right != nullptr) {
+                s.push(curr->right);
+            }
+            if (curr->left != nullptr) {
+                s.push(curr->left);
+            }
+        }
+        return res;
+    }
+};
+```
+
+- **注意点**：
+
+1. **首先判断根结点指针是否为空，为空直接返回空**；
+2. **提前让 `root` 进栈，否则循环中 `curr` 为野指针**；
+3. **先访问根节点**，**进栈顺序**：`右孩子->左孩子`;**出栈顺序**：`左孩子->右孩子`;
+
+## 20. 题号：145 -- 二叉树的后序遍历（简单）
+
+> **思路核心(三种解法同)**：**左子树->右子树->根**;
+> 
+> **解法 1、2 同上**，**注意解法 3、4 的差异**
+
+### 19.1 解法 1 -- 拷贝递归实现
+```cpp
+class Solution {
+public:
+    vector<int> postorderTraversal(TreeNode *root) {
+        vector<int> res;
+        if (root == nullptr) {
+            return res;
+        }
+        vector<int> left = postorderTraversal(root->left);
+        res.insert(res.end(), left.begin(), left.end());
+        vector<int> right = postorderTraversal(root->right);
+        res.insert(res.end(), right.begin(), right.end());
+        res.push_back(root->val);
+        return res;
+    }
+};
+```
+
+### 19.2 解法 2 -- 借用辅助函数原地递归实现
+代码如下：
+```cpp
+class Solution {
+private:
+    void postorder(TreeNode *root, vector<int> &res) {
+        if (root == nullptr) {
+            return ;
+        }
+        postorder(root->left, res);
+        postorder(root->right, res);
+        res.push_back(root->val);
+    }
+public:
+    vector<int> postorderTraversal(TreeNode *root) {
+        vector<int> res;
+        postorder(root, res);
+        return res;
+    }
+};
+```
+
+> **思路清晰，写递归大推荐**
+
+### 19.3 解法 3 -- 非递归迭代实现 -- 前序遍历变种(根右左) + 反转
+代码如下：
+```cpp
+class Solution {
+public:
+    vector<int> postorderTraversal(TreeNode *root) {
+        vector<int> res;
+        stack<TreeNode*> s;
+        if (root == nullptr) {
+            return res;
+        }
+        s.push(root);                       // 这里要提前让 root 进栈，否则循环中 curr 为野指针
+        while (!s.empty()) {
+            TreeNode *curr = s.top();
+            s.pop();
+            // 1.先访问根结点
+            res.push_back(curr->val);
+            // 进栈：左->右   出栈：右->左(即 根->右->左)
+            if (curr->left != nullptr) {
+                s.push(curr->left);
+            }
+            if (curr->right != nullptr) {
+                s.push(curr->right);
+            }
+        }
+        // 反转：根->右->左 ----> 左->右->根
+        reverse(res.begin(), res.end());
+        return res;
+    }
+};
+```
+
+- **注意点**：
+1. 此为前序遍历的变种，**原前序遍历：`根->左->右`，变种：`根->右->左`，以满足前序遍历变种反转之后为 `左->右->根`** (即为**后序遍历**)；
+2. 实现时，**先访问根节点，再左子树入栈，最后右子树入栈**（**原前序遍历先右子树入栈，最后左子树入栈**）；
+3. 使用 `reverse` 记得包含 `algorithm`；
+
+### 19.4 解法 4 -- 正式非递归迭代实现
+代码如下：
+```cpp
+class Solution {
+public:
+    vector<int> postorderTraversal(TreeNode *root) {
+        vector<int> res;
+        stack<TreeNode*> s;
+        TreeNode *curr = root;
+        TreeNode *lastVisited = nullptr;
+        while (curr != nullptr || !s.empty()) {
+            // 一路向左，压栈
+            while (curr != nullptr) {
+                s.push(curr);
+                curr = curr->left;
+            }
+            // 此时 curr = nullptr
+            TreeNode *top = s.top();            // 栈顶节点 top 是最左边的尚未被访问的节点（即栈空表示左子树已经处理完毕）
+            // 如果右子树为空或右子树已访问，则访问当前节点
+            if (top->right == nullptr || top->right == lastVisited) {
+                res.push_back(top->val);
+                s.pop();
+                lastVisited = top;              // 标记为已访问
+            } else {
+                // 右子树不为空且未访问，转右子树
+                curr = top->right;
+            }
+        }
+        return res;
+    }
+};
+```
+
+- **注意点**：
+1. **左子树的访问完毕由栈空保证，右子树第二个被访问时在 `else` 分支中，只要有右子树就访问，没有或已经访问过右子树才访问根**
+2. 左子树、根节点、右子树是在一个地方被访问（**均作为根结点被访问**）
+3. `lastVisited` 用于标记是否访问
