@@ -1674,3 +1674,912 @@ public:
 1. **左子树的访问完毕由栈空保证，右子树第二个被访问时在 `else` 分支中，只要有右子树就访问，没有或已经访问过右子树才访问根**
 2. 左子树、根节点、右子树是在一个地方被访问（**均作为根结点被访问**）
 3. `lastVisited` 用于标记是否访问
+
+## 21. 题号： -- （简单）
+### 21.1 解法
+```cpp
+class Solution {
+public:
+    vector<vector<int>> levelOrder(TreeNode *root) {
+        vector<vector<int>> res;
+        queue<TreeNode*> q;
+        if (root == nullptr) {
+            return res;
+        }
+        q.push(root);
+        while (!q.empty()) {
+            int levelSize = q.size();           // 关键点：根据当前层的结点数遍历
+            vector<int> level;
+            for (int i = 0; i < levelSize; ++i) {
+                TreeNode *curr = q.front();
+                q.pop();
+                level.push_back(curr->val);
+                // 将下一层要遍历的结点入队
+                if (curr->left != nullptr) q.push(curr->left);
+                if (curr->right != nullptr) q.push(curr->right);
+            }
+            res.push_back(move(level));           // 显式移动，避免拷贝
+        }
+        return res;
+    }
+};
+```
+
+- **知识点**：**层序遍历**、**BFS**、**队列**；
+    
+- **思路**：**借助队列实现，每次记录上一层遍历的结点的个数以遍历出队当前层**;
+
+- **注意点**：
+1. 使用**队列存储下一层的访问顺序**，保证广度优先搜索的访问顺序正确；
+2. 每层遍历前，先**获取当前层的长度(核心技巧)，保证遍历时不会出队下一层的元素**；
+3. **边遍历当前层的元素，边将下一层的元素入队**；
+4. **关键优化点**：`res.push_back(move(level))` **使用 `move` 将左值改为右值，避免不必要的拷贝开销**；
+
+> `move` 的作用：`res` 里的新 `vector` 会直接**接管 `level` 的内部数组指针，而 `level` 自身变空**。**成本从 $O(levelSize)$ 降到 $O(1)$**。
+
+## 22. 题号：104 -- 二叉树的最大深度（简单）
+### 22.1 解法 1 -- 递归解法(深度优先搜索 DFS)
+```cpp
+class Solution {
+public:
+    int maxDepth(TreeNode *root) {
+        if (root == nullptr) {
+            return 0;
+        }
+        int leftDepth = maxDepth(root->left);
+        int rightDepth = maxDepth(root->right);
+        return 1 + (leftDepth > rightDepth ? leftDepth : rightDepth);
+    }
+};
+```
+
+### 22.2 解法 2 -- 层序遍历解法(广度优先搜索 BFS)
+代码如下：
+```cpp
+class Solution {
+public:
+    int maxDepth(TreeNode *root) {
+        if (root == nullptr) return 0;
+        int depth = 0;                  // 出队一层 + 1，故而初始化为 0
+        queue<TreeNode*> q;
+        q.push(root);
+        while (!q.empty()) {
+            int levelSize = q.size();
+            for (int i = 0; i < levelSize; ++i) {
+                TreeNode *curr = q.front();
+                q.pop();
+                if (curr->left != nullptr) q.push(curr->left);
+                if (curr->right != nullptr) q.push(curr->right);
+            }
+            ++depth;
+        }
+        return depth;
+    }
+};
+```
+
+- **知识点**：**递归**、**层序遍历**；
+
+- **对比**：**时间相同，空间理论上 DFS 对平衡树更优，BFS 对退化树更优，一般情况 DFS 更优(递归)，但极深数栈有溢出风险**；
+
+## 23. 题号： -- （简单）
+### 23.1 错误解法
+```cpp
+class Solution {
+public:
+    bool isSymmatric(TreeNode *root) {
+        if (root == nullptr) return true;
+        TreeNode *left = root->left, *right = root->right;
+        queue<TreeNode*> q;
+        q.push(root);
+        while (left != nullptr && right != nullptr) {
+            int q_size = q.size();
+            for (int i = 0; i < q_size; ++i) {
+                TreeNode *node_l = q.front();
+                q.pop();
+                TreeNode *node_r = q.front();
+                q.pop();
+                if (node_l->val != node_r->val) {
+                    return false;
+                }
+                // 每次压入两个值 left->val, right->val
+                if (left->left && right->left) {
+                    q.push(left->left);
+                    q.push(right->left);
+                }
+                if (left->right && right->right) {
+                    q.push(left->right);
+                    q.push(right->right);
+                }
+            }
+        }
+        return true;
+    }
+};
+```
+
+- **思路**：**双指针 + BFS + 单个队列**(没问题);
+
+- **错误点**：
+1. **逻辑错误**：
+
+(1) 第一次进入循环时，队列只有一个元素 `root`，但循环内连续 `pop` 两次，**第二次 `pop` 会访问空队列**，导致未定义行为（通常崩溃）;
+
+(2) `left` 和 `right` 是 `root->left` 和 `root->right` 的初始值，**在循环内从未被更新**。因此：
+
+- 如果**根没有左孩子或没有右孩子，循环根本不会进入**，直接 return true（错误，例如 [1,2,null] 应返回 false）;
+
+- 如果**左右孩子都存在，则条件永远为真，形成无限循环**（因为队列可能在某一轮变空，但外层 while 不会退出）;
+
+(3) **`left` 和 `right` 一直指向根的孩子，而不是当前正在比较的节点 `node_l` / `node_r`**。这导致所有层都只比较根的孩子，完全不符合对称性要求;
+
+(4) 代码只在两个子节点都存在时才入队。**如果有一个子节点为 null 而另一个非 `nullptr`**，这一对节点会被忽略，**不会触发 `false`**;
+
+### 23.2 正确解法及分析
+代码如下：
+```cpp
+class Solution {
+public:
+    bool isSymmetric(TreeNode *root) {
+        if (root == nullptr) return true;
+        queue<TreeNode*> q;
+        q.push(root->left);
+        q.push(root->right);
+        while (!q.empty()) {
+            TreeNode *l = q.front();
+            q.pop();
+            TreeNode *r = q.front();
+            q.pop();
+            if (l == nullptr && r == nullptr) continue;
+            if (l == nullptr || r == nullptr) return false;
+            if (l->val != r->val) return false;
+            // 按照镜像顺序入队
+            q.push(l->left);
+            q.push(r->right);
+            q.push(l->right);
+            q.push(r->left);
+        }
+        return true;
+    }
+};
+```
+
+- **知识点**：**一个队列 + BFS + 双指针**；
+
+- **时间复杂度 -- $O(n)$，空间复杂度 -- $O(2^k - 1)(最大)$**(n 为结点数)
+
+- **注意点**：
+1. **`root` 不用入队**，否则队元素个数不是都是，总有一次出队两个元素时，第二次出队是**未定义行为**；
+2. **循环终止条件为队空**；
+3. **先判断 `l` 和 `r` 是否为空(先排除 `l == nullptr && r == nullptr` 的情况)**，为空则退出本次循环，之后再 `if (l == nullptr || r == nullptr) return false` ，否则当 `l` 和 `r` 均为 `nullptr` 时也会返回 `false`，还有，别忘了 `l->val != r->val` 也返回 `false`;
+4. 二叉树对称是 **镜像对称**（类似纸对折重合）即 `l->left = ->right` && `l->right = r->left`，**故按镜像顺序入轨**;
+5. 这里的 BFS 不用 `levelSize`;
+
+## 24. 题号：226 -- 翻转二叉树（简单）
+### 24.1 错误解法
+```cpp
+class Solution {
+public:
+    TreeNode* invertTree(TreeNode *root) {
+        if (root == nullptr) return root;
+        queue<TreeNode*> q;
+        q.push(root);
+        q.push(root->left);
+        q.push(root->right);
+        while (!q.empty()) {
+            TreeNode *r = q.front(); q.pop();
+            TreeNode *lT = q.front(); q.pop();
+            TreeNode *rT = q.front(); q.pop();
+            r->left = rT;
+            r->right = lT;
+            q.push(lT);
+            q.push(lT->left);
+            q.push(lT->right);
+            q.push(rT);
+            q.push(rT->left);
+            q.push(rT->right);
+        }
+        return root;
+    }
+};
+```
+
+- **思路**：队列实现层序遍历;
+
+- **错误点**：
+1. **逻辑错误**：；
+
+(1) **空指针解引用（崩溃）**
+- 当 `lT` 或 `rT` 为 `nullptr` 时，访问 `lT->left` 等会直接导致程序崩溃。
+- 即便前一步判空跳过，后续从队列取出 `nullptr` 作为 `r` 时，`r->left = rT` 同样解引用空指针。
+
+(2) **“三元组”入队模式在树不完全时必然错位**
+- 若某个节点缺少左子或右子，入队时少 `push` 了对应的三元组（或 `push` 了 `nullptr`）。
+- 下一轮循环取出的三个元素就不再是“父-左-右”的对应关系，**后续所有处理全部错位**，导致错误交换甚至崩溃。
+
+(3) **重复处理同一节点导致无限循环的风险**
+- 虽然在某些满二叉树情况下不会重复，但代码将 r（当前节点）作为三元组的首元素压回队列，若因错位等原因某些节点被多次压入，或因空指针跳过导致队列元素不足三个时，while(!q.empty()) 可能永远为真或提前异常终止。
+
+(4) **交换的语义实现存在严重误导**
+- `r->left = rT; r->right = lT;` 看上去像是交换左右孩子，但 `rT` 和 `lT` 是**旧的孩子**，而**新孩子入队时用的还是旧孩子，没有利用交换后的结构**。虽然巧合下能遍历完，但队列管理极为混乱，不属于正确的 BFS 或 DFS 模式。
+
+### 24.2 正确解法 1 -- 迭代
+代码如下：
+```cpp
+class Solution {
+public:
+    TreeNode* invertTree(TreeNode *root) {
+        if (root == nullptr) return root;
+        queue<TreeNode*> q;
+        q.push(root);
+        while (!q.empty()) {
+            TreeNode *curr = q.front();
+            q.pop();
+            swap(curr->left, curr->right);
+            if (curr->left != nullptr) q.push(curr->left);
+            if (curr->right != nullptr) q.push(curr->right);
+        }
+        return root;
+    }
+};
+```
+
+- **知识点**：**队列**，**层序遍历**；
+
+- **注意**：如果**强制使用 C 语言**，`swap` 函数可以用 `TreeNode *tmp = curr->left; curr->left = curr->right; curr->right = tmp;` 实现；
+
+### 24.3 正确解法 2 -- 递归解法
+代码如下：
+```
+class Solution {
+public:
+    TreeNode* invertTree(TreeNode *root) {
+        // 递归基
+        if (root == nullptr) return root;
+        // 先翻转左、右子树
+        invertTree(root->left);
+        invertTree(root->right);
+        // 再交换左右孩子
+        swap(root->left, root->right);
+        return root;
+    }
+};
+```
+
+- **知识点**：**递归**；
+
+- **注意**：**别忘记翻转左右子树后还要交换当前 `root` 的左右孩子**；
+
+## 25. 题号：543 -- 二叉树的直径（简单）
+### 25.1 错误解法
+```cpp
+private:
+    int maxDepth(TreeNode *root) {
+        if (root == nullptr) return 0;
+        int leftDepth = maxDepth(root->left);
+        int rightDepth = maxDepth(root->right);
+        return 1 + (leftDepth > rightDepth ? leftDepth : rightDepth);
+    }
+public:
+    int diameterOfBinatyTree(TreeNode *root) {
+        if (root == nullptr) return 0;
+        return 1 + maxDepth(root->left) + maxDepth(root->right);
+    }
+};
+```
+
+- **思路**：**二叉树直径 = 左子树最大深度 + 右子树最大深度 + 1(根结点)**;
+
+- **错误点**：
+1. **逻辑错误**：**二叉树的直径不一定经过根节点**，上述代码只计算了 `root->left` 的深度 + `root->right` 的深度（再加1），这**仅仅得到了经过根节点的那条路径的节点数，但直径可能出现在任意子树中，完全可能不经过根节点**，如下例直径为 `6->4->2->5->27`，没有经过根结点：
+
+```text
+        1
+       / \
+      2   3
+     / \
+    4   5
+   /     \
+  6       27
+```
+
+### 25.2 正确解法 1 -- 递归解法
+代码如下：
+```cpp
+class Solution {
+private:
+    int diameter = 0;                       // 全局直径(全局最大边数)
+    int depth(TreeNode *root) {
+        if (root == nullptr) return 0;
+        int L = depth(root->left);
+        int R = depth(root->right);
+        diameter = diameter > (L + R) ? diameter : L + R;   // L(左子树深度) + R(右子树深度) 即经过该结点的边数
+        return 1 + (L > R ? L : R);     // 返回深度
+    }
+public:
+    int diameterOfBinaryTree(TreeNode *root) {
+        depth(root);
+        return diameter;
+    }
+};
+```
+
+- **知识点**：**递归**；
+
+- **思路**：每颗子树二叉树直径 = 左子树最大深度 + 右子树最大深度 + 1，**每颗子树二叉树直径中的最大值即为二叉树的直径**;
+
+## 26. 题号：2704 -- 二分查找（简单）
+### 26.1 正确解法 -- 二分查找
+代码如下：
+```cpp
+class Solution {
+public:
+    int search(vector<int> &nums, int target) {
+        int left = 0, right = nums.size() - 1;
+        while (left <= right) {
+            int mid = (left + right) / 2;
+            if (nums[mid] == target) {
+                return mid;
+            }
+            if (nums[mid] < target) {       // target 在右半边
+                left = mid + 1;
+            }
+            if (nums[mid] > target) {       // target 在左半边
+                right = mid - 1;
+            }
+        }
+        return -1;
+    }
+};
+```
+
+- **知识点**：**二分查找**；
+
+- **时间复杂度 -- $O(log n)$，空间复杂度 -- O(1)**；
+
+- **思路**：学过数据结构的都知道，可以不看；没学过的看这里：每次取区间重点与 `target` 进行比较，**通过 `nums[mid]` 和 `target` 的大小关系不断更新区间，直至 `nums[mid] = target`(找到) 或 `left > right`(不存在数组中)**；
+
+- **注意点**：
+1. 循环终止条件为 `left <= right`，**等号不能掉**；
+2. 更新 `mid` 时的 **`+ 1` 或 `- 1` 不能掉**；
+3. 二分搜索的前提：**有序数组**；
+
+## 27. 题号：35 -- 搜索插入位置（简单）
+### 27.1 错误解法
+```cpp
+public:
+    int searchInsert(vector<int> &nums, int target) {
+        int left = 0, right = nums.size() - 1;
+        int mid = 0;
+        while (left <= right) {
+            // 防止 left + right > INT_MAX 时溢出
+            mid = left + (right - left) / 2;
+            if (nums[mid] == target) {
+                return mid;
+            } else if (nums[mid] < target) {
+                left = mid + 1;
+            } else {
+                right = mid - 1;
+            }
+        }   // mid = left = right;
+        return mid;
+    }
+};
+```
+
+- **错误点**：**插入位置判断错误**；
+
+### 27.2 正确解法及分析
+代码如下：
+```cpp
+class Solution {
+public:
+    int searchInsert(vector<int> &nums, int target) {
+        int left = 0, right = nums.size() - 1;
+        int pos = nums.size();      // 默认插入位置在末尾(所有元素 < target)
+        while (left <= right) {
+            int mid = left + (right - left) / 2;
+            if (nums[mid] >= target) {
+                pos = mid;          // mid 为候选插入位置，先往前找是否有等于 nums[mid] 的重复值
+                right = mid - 1;
+            } else {
+                left = mid + 1;
+            }
+        }
+        return pos;
+    }
+};
+```
+
+- **知识点**：**二分搜索变种**；
+
+- **时间复杂度 -- $O(log n)$，空间复杂度 -- $O(1)$**
+
+- **注意点**：
+1. 关键 -- **查找第一个大于等于 `target` 的位置（即 C++ 中 `std::lower_bound` 的实现）**；
+2. **当 `nums[mid] == target` 时不立即返回，而是继续往左搜索（因为可能有重复元素，我们找的是第一个满足条件的位置）**，所以 `nums[mid] == target` 的 情况和 `nums[mid] > target` 的情况合并，均向左搜索；
+3. **插入位置永远为 `mid` 的位置**：
+- `target` 没找到 且 `target < mid` 时，插入 `mid` 前面，即当前 `mid` 的位置，`mid` 及后面所有数后移；
+- `nums[mid] == target` 时，重复值可以插入 `mid` 前面(即当前 `mid` 的位置)或后面；
+- **综上取 `mid` 之前(即当前 `mid` 的位置)**； 
+
+## 28. 题号：509 -- 斐波那契数（简单）
+### 28.1 解法 1 -- 递归解法
+```cpp
+class Solution {
+public:
+    int fib(int n) {
+        f (n <= 1) {
+            return n;
+        } else {
+            return fib(n - 1) + fib(n - 2);
+        }
+    }
+};
+```
+
+- **知识点**：**递归**；
+
+- **时间复杂度 -- $O(2^n)$，空间复杂度(栈开销) -- $O(n)$**；
+
+> **关于时间复杂度为 $O(2^n)$ 的解释：**
+
+1. **通过二叉树的结构理解**：每次递归调用都伸出两个分支 `fib(n - 1)` 和 `fib(n - 2)`，类似二叉树的左右子树，但是**左右子树的深度不同，故此二叉树非完全二叉树**(一个为 `n - 1`，一个为 `n - 2`)，所以**最终的时间复杂度接近 $O(2^n)$ 但是小于 $O(2^n)$(做了剪枝操作)**；
+2. **精确推导**：
+
+设 T(n) 为计算 fib(n) 所需的基本操作次数（或函数调用次数）。
+由代码：
+```cpp
+if (n == 0) return 0;          // 常数时间 O(1)
+else if (n == 1) return 1;     // O(1)
+else return fib(n-1) + fib(n-2); // T(n-1) + T(n-2) + 常数
+```
+因此有类似的递推式子：
+```text
+T(n) = T(n-1) + T(n-2) + c
+T(0) = d, T(1) = e   （常数）
+```
+它的**解为 $T(n) = Θ(φ^n)$(解法：常系数线性非齐次方程求解)，其中 $φ = (1+√5)/2 ≈ 1.618$**（黄金比例）。
+
+**因为 $1.618^n$ 是指数级增长，我们用更宽松的上界 $2^n$ 来表示其指数复杂度，即 $T(n) = O(2^n)$**。
+
+- **可优化**：上述代码 `fib(n - 1)` 和 `fib(n - 2)` 的计算每个都要**单独**递归计算，导致时间复杂度飙升至 $O(2^n)$，实际上，**可以存储计算过的斐波那契数便于直接使用，避免重复计算**；
+
+### 28.2 解法 2 -- 记忆化搜索
+代码如下：
+```cpp
+class Solution {
+private:
+    int fib_memo(int n, vector<int> &memo) {
+        if (n <= 1) return n;
+        // 如果已经计算过 memo[n]，直接返回
+        if (memo[n] != -1) return memo[n];      
+        // 没有计算 memo[n] 则递归计算
+        memo[n] = fib_memo(n - 1, memo) + fib_memo(n - 2, memo);
+        return memo[n];
+    }
+public:
+    int fib(int n) {
+        vector<int> memo(n + 1, -1);        // fib(0) ~ fib(n)
+        return fib_memo(n, memo);
+    }
+};
+```
+
+- **知识点**：**记忆化搜索**；
+
+- **时间复杂度 -- $O(n)$，空间复杂度(多了`memo`数组，占用空间更大) -- $O(n)$**
+
+### 28.3 解法 3 -- 迭代 DP(朴素版)-- 空间复杂度 O(n)
+代码如下：
+```cpp
+class Solution {
+public:
+    int fib(int n) {
+        if (n <= 1) return n;
+        vector<int> dp(n + 1);
+        dp[0] = 0;
+        dp[1] = 1;
+        for (int i = 2; i <= n; ++i) {
+            dp[i] = dp[i - 1] + dp[i - 2];
+        }
+        return dp[n];
+    }
+};
+```
+
+- **知识点**：**迭代**，**动态规划(DP -- Dynamic Programming)**；
+
+> **动态规划的两个核心特征**
+> 1. **重叠子问题**：问题可以分解为子问题，且这些子问题会被重复计算。
+> 2. **最优子结构**（这里更准确是“递推结构”）：当前问题的解可以由子问题的解组合而成。
+
+- **时间复杂度 -- $O(n)$，空间复杂度 -- $O(n)$**
+
+- **空间可优化**：实际上，**计算 `dp[i]` 只需要用到 `dp[i-1]` 和 `dp[i-2]`，其他的数不需要保存**；
+
+### 28.4 解法 4 - 滚动数组(迭代 DP 空间优化) -- 空间复杂度 O(1)
+优化版本代码如下：
+```cpp
+class Solution {
+public:
+    int fib(int n) {
+        if (n <= 1) return n;
+        int pre2 = 0;               // 前两个位置
+        int pre1 = 1;               // 前一个位置
+        int curr;
+        for (int i = 2; i <= n; ++i) {
+            curr = pre2 + pre1;
+            pre2 = pre1;
+            pre1 = curr;
+        }
+        return curr;
+    }
+};
+```
+
+> **推荐该种解法**
+
+### 28.5 解法 5 -- 矩阵快速幂
+代码如下：
+```cpp
+class Solution {
+private:
+    // 2x2 矩阵乘法
+    vector<vector<long long>> multiply(const vector<vector<long long>> &A, const vector<vector<long long>> &B) {
+        return {
+            {   // 第一行
+                A[0][0] * B[0][0] + A[0][1] * B[1][0],      // 第一行第一列
+                A[0][0] * B[0][1] + A[0][1] * B[1][1]       // 第一行第二列
+            }, 
+            {   // 第二行
+                A[1][0] * B[0][0] + A[1][1] * B[1][0],      // 第二行第一列
+                A[1][0] * B[0][1] + A[1][1] * B[1][1]       // 第二行第二列
+            }
+        };
+    }
+    // 矩阵快速幂 -- 位运算实现
+    vector<vector<long long>> matrixPower(const vector<vector<long long>> &M, int exp) {
+        vector<vector<long long>> res = {{1, 0}, {0, 1}};
+        vector<vector<long long>> base = M;
+        while (exp > 0) {
+            // 指数为奇数，提前面的 M
+            if (exp & 1) {          // 等价于 exp % 2 == 0
+                res = multiply(res, base);
+            }
+            // 指数为偶数次，进行 M = M^2
+            base = multiply(base, base);
+            // 位运算更新 exp
+            exp >>= 1;              // 右移一位，等价于 exp %= 2;
+        }
+        return res;
+    }
+public:
+    int fib(int n) {
+        if (n <= 1) return n;
+        vector<vector<long long>> M = {{1, 1}, {1, 0}};
+        // M^(n-1) 的左上角元素即为 F(n)
+        vector<vector<long long>> power = matrixPower(M, n - 1);
+        return static_cast<int>(power[0][0]);
+    }
+};
+```
+
+- **知识点**：**矩阵快速幂**；
+
+- **时间复杂度 -- $O(log n)$，空间复杂度 -- O(1)**；
+
+- **思路**：
+
+矩阵快速幂是求解斐波那契数列的**对数级**方法，时间复杂度 **O(log n)**。它的核心思想是把递推关系转化为矩阵乘法，再利用快速幂高效计算矩阵的 n 次方。
+
+---
+
+#### 1. 递推关系的矩阵形式
+斐波那契数列的递推：
+$$
+F(n) = F(n-1) + F(n-2)
+$$
+可以写成矩阵乘法：
+$$
+\begin{bmatrix}
+F(n) \\
+F(n-1)
+\end{bmatrix}
+=
+\begin{bmatrix}
+1 & 1 \\
+1 & 0
+\end{bmatrix}
+\cdot
+\begin{bmatrix}
+F(n-1) \\
+F(n-2)
+\end{bmatrix}
+$$
+设矩阵 $ M = \begin{bmatrix} 1 & 1 \\ 1 & 0 \end{bmatrix} $，则有：
+$$
+\begin{bmatrix}
+F(n) \\
+F(n-1)
+\end{bmatrix}
+= M \cdot
+\begin{bmatrix}
+F(n-1) \\
+F(n-2)
+\end{bmatrix}
+= M^2 \cdot
+\begin{bmatrix}
+F(n-2) \\
+F(n-3)
+\end{bmatrix}
+= \dots = M^{n-1} \cdot
+\begin{bmatrix}
+F(1) \\
+F(0)
+\end{bmatrix}
+$$
+已知 $ F(1) = 1, F(0) = 0 $，所以：
+$$
+\begin{bmatrix}
+F(n) \\
+F(n-1)
+\end{bmatrix}
+= M^{n-1} \cdot
+\begin{bmatrix}
+1 \\
+0
+\end{bmatrix}
+$$
+
+最终 $ F(n) $ 就是结果矩阵的**第一行第一列元素**（或直接取列向量的第一个分量）。
+
+---
+
+#### 2. 快速幂（二分求幂）
+计算 $M^n$ 不需要做 n 次乘法，可以用快速幂将复杂度降到 $O(log n)$：
+
+- 若指数为偶数：$ M^k = (M^{k/2})^2 $
+- 若指数为奇数：$ M^k = M \cdot (M^{(k-1)/2})^2 $
+
+每次指数减半，只需 $O(log n)$ 次矩阵乘法。
+
+```cpp
+vector<vector<long long>> matrixPower(const vector<vector<long long>> &M, int exp) {
+        vector<vector<long long>> res = {{1, 0}, {0, 1}};
+        vector<vector<long long>> base = M;
+        while (exp > 0) {
+            // 指数为奇数，提前面的 M
+            if (exp & 1) {          // 等价于 exp % 2 == 0
+                res = multiply(res, base);
+            }
+            // 指数为偶数次，进行 M = M^2
+            base = multiply(base, base);
+            // 位运算更新 exp
+            exp >>= 1;              // 右移一位，等价于 exp %= 2;
+        }
+        return res;
+    }
+```
+
+- **理解矩阵快速幂的代码**:
+具体例子：**计算 $2^13$**（用矩阵类比）
+
+1. **传统描述**：  
+$2^{13} = 2 \cdot (2^2)^6$ （13 是奇数，先提一个 2）  
+然后 $2^2$ 平方得 $2^4$，指数 6 是偶数，继续平方……  
+最终把遇到的奇数次乘上去。
+
+2. **二进制实现**：  
+13 的二进制是 `1101`（从右到左：1、0、1、1）。  
+- 最低位=1（奇数），`res *= base`（乘 2^1），`base` 平方成 2^2，指数右移为 `110` (6)。
+- 下一位=0（偶数），不乘，`base` 平方成 2^4，指数右移为 `11` (3)。
+- 下一位=1（奇数），`res *= base`（乘 2^4），`base` 平方成 2^8，指数右移为 `1` (1)。
+- 下一位=1（奇数），`res *= base`（乘 2^8），`base` 平方成 2^16，指数右移为 `0`，退出。
+
+`res` 先后乘了 $2^1$、$2^4$、$2^8$，乘积正好是 $2^{13}$。这完美对应 “若奇则先乘后平方，若偶则只平方” 的规则，只是换了个更直接的实现视角。
+
+- **关于位运算(硬件层面一定更高效)**：
+1. **`exp & 1`：等价于 `exp %2 == 1`，但是更高效**；计算过程：1 的二进制除了最低位是 1，其余所有高位全是 0。所以 `exp & 1` 实际上是**把 `exp` 的所有高位清零，只保留最低位的那一位，然后进行与运算**；
+2. **`exp >>= 1`：右移一位，等价于 `exp %= 2`(实际编译器会该指令自动转化为右移运算)**；
+---
+
+- **关于代码实现**：
+1. **`long long` 的使用原因**：
+- `int` 通常只有 32 位，能表示的最大值大约 21 亿（$2^{31}-1$），而 `fib(46) ≈ 1.836 亿`，还能塞进 `int`；`fib(47) ≈ 2.97 亿`也还行，但到 **`fib(48)` 就溢出**了。
+- `long long` 至少 64 位，能表示的范围大得多（约 9e18），可以安全计算到 `fib(92)` 左右。
+
+2. **`const` 的使用**：**允许接收临时对象** -- 如果调用时传入一个**右值**（比如函数返回的临时矩阵），只有 `const`引用才能绑定到它。去掉 `const` 就绑不上了，会增加拷贝开销或编译错误。
+
+3. **`static_cast<int>` 的使用**：C++ 的**显示类型转换**，类似 C 的 `(int)power[0][0]` ；
+
+## 29. 题号：70 -- 爬楼梯（简单）
+### 29.1 错误解法
+```cpp
+class Solution {
+private:
+    // 辗转相除法/欧几里得算法 求 最大公约数用于之后组合数的约分(Greatest Common Divisor)
+    long long gcd(long long a, long long b) {       // a >= b
+        if (b != 0) {
+            long long tmp = b;
+            b = a % b;
+            a = tmp;
+        }
+        return a;
+    }
+    // long long + 求组合数 C(n, k) 时边乘边除最大公约数约分的技巧防止溢出
+    long long combination(int n, int k) {
+        if (k < 0 || k > n) return 0;
+        // 利用对称性 C(n, k) = C(n, n - k) 挑选 k 和 n - k 的较小值减少循环次数
+        if (k > n - k) k = n - k;
+        long long numerator = 1;        // 分子
+        long long denominator = 1;      // 分母
+        for (int i = k; i >= 1; ++i) {
+            numerator *= i;
+            denominator *= (n - k + i);
+            // 核心优化：边乘边约分
+            long long g = gcd(denominator, numerator);      // 注意 a >= b，这里的传值顺序要对应
+            numerator /= g;
+            denominator /= g;
+        }
+        return numerator / denominator;
+    }
+public:
+    int climbStairs(int n) {
+        int totalWay = 0;
+        for (int i = 0; i <= n / 2; ++i) {
+            totalWay += combination(n, i);
+        }
+        return totalWay;
+    }
+};
+```
+
+- **思路**：**讨论数字 2 的不同个数 + 相应个数的数字 2 怎么在 n 中排列组合**;
+
+- **错误点**：**超时**；
+
+- **注意点**：
+1. 题目中 `n` 最大可以达到 45，$C_n^{k}$ 这个组合数会非常大（约 $4.1 \times 10^{12}$），这个值已经远远超出了 `int` 类型的范围，**必须使用 `long long` 类型来存放中间结果防止溢出**；
+2. **边乘边约分防止溢出**；
+3. **辗转相除法(欧几里得算法)原理**：求**最大公约数(`Greatest Common Divisor`)**
+(1) **原理推导**
+
+设我们要计算 `gcd(a, b)`，且 `a ≥ b > 0`。  
+根据带余除法，存在唯一整数商 `q` 和余数 `r`，使得：
+$$
+a = b \cdot q + r, \quad 0 \le r < b
+$$
+
+**关键性质**：  
+- 如果 `d` 能同时整除 `a` 和 `b`（即 `d | a` 且 `d | b`），则 `d` 必定也能整除 `r`（因为 `r = a - bq`）。  
+- 反之，如果 `d` 能整除 `b` 和 `r`，则 `d` 也一定能整除 `a`。
+
+因此，**`a` 和 `b` 的公约数集合与 `b` 和 `r` 的公约数集合完全相同**，所以它们的 **最大公约数也相等**：
+
+$$
+\gcd(a, b) = \gcd(b, r)
+$$
+
+其中 `r = a \b mod b`。
+
+(2) **高效性**
+
+- 每迭代一次，余数至少减半（更严格地，余数 `r < b/2` 或下一次迭代会快速减小），因此迭代次数为 `O(log min(a,b))`。
+- 只需要整数除法和取模运算，非常适合编程实现。
+
+(3) **特殊情况处理**
+
+- 如果 `b = 0`，则 `gcd(a, 0) = a`（按定义，任何数整除 0）。
+- 如果 `a = b = 0`，通常定义 GCD 为 0（视具体需求）。
+
+> **大一一直不懂辗转相除法的原理，看很久都不懂，现在一会就看懂了。**
+> 
+> **我想说的是：不必纠结于一时的怅惘，不妨向前走，回首处，也无风雨也无晴！**
+
+### 29.2 正确解法及分析
+代码如下：
+```cpp
+class Solution {
+public:
+    int climbStairs(int n) {
+        if (n <= 2) return n;
+        int prev = 1;           // 与 fibonacci 不同的是前两个值
+        int curr = 2;    
+        for (int i = 3; i <= n; ++i) {
+            int next = prev + curr;
+            prev = curr;
+            curr = next;
+        }
+        return curr;
+    }
+};
+```
+
+- **知识点**：**斐波那契数列**，**DP**，**滚动数组**；
+
+- **时间复杂度 -- $O(n)$，空间复杂度 -- $O(1)$**
+
+- **思路**：关键在于发现 **状态转移方程**：
+
+`爬到第 n 阶的方法数 = 爬到第 n-1 阶的方法数（再爬 1 步） + 爬到第 n-2 阶的方法数（再爬 2 步）`;
+
+即：`dp[n] = dp[n-1] + dp[n-2]`，初始条件 `dp[1] = 1`, `dp[2] = 2`，所以 **该题为斐波那契数列的“马甲题”**。
+
+- **注意点(与 `Fibonacci` 数列稍有不同)**：
+1. **`n <= 2`(`fib` 是 `n <= 1`) 直接返回 `n`**；
+2. **初始化的两个值** 是 1 和 2 (`fib` 是 0 和 1)；
+3. **`i` 从 3 开始** (`fib` 是从 2 开始)；
+
+## 30. 题号：121 -- 买卖股票的最佳时机（简单）
+### 30.1 错误解法 1 -- 暴力枚举(超时)
+```cpp
+class Solution {
+public:
+    int maxProfit(vector<int> prices) {
+        int max = 0;
+        for (int i = 0; i < prices.size() - 1; ++i) {
+            for (int j = i + 1; j < prices.size(); ++j) {
+                if (max < prices[j] - prices[i]) {
+                    max = prices[j] - prices[i];
+                }
+            }
+        }
+        return max;
+    }
+};
+```
+
+- **思路**：问题等价于：**在数组中找两个位置 `i < j`，使得 `prices[j] - prices[i]` 最大**；
+
+### 30.2 解法 2 -- 贪心
+代码如下：
+```cpp
+class Solution {
+public:
+    int maxProfit(vector<int> prices) {
+        int min = prices[0], maxProfit = 0;
+        for (int i = 1; i < prices.size(); ++i) {
+            maxProfit = maxProfit < (prices[i] - min) ? (prices[i] - min) : maxProfit;
+            min = min > prices[i] ? prices[i] : min;
+        }
+        return maxProfit;
+    }
+};
+```
+
+- **知识点**：**贪心**；
+
+- **时间复杂度 -- $O(n)$，空间复杂度 -- $O(1)$**
+
+- **思路**：**在遍历每一天时，把当天当做“潜在卖出日”，根据前面出现过的最低价格（即最佳买入价），求出到这一天的最大利润，遍历完数组(所有天)，即求得题目要的最大利润**;
+
+### 30.3 解法 3 -- DP / Kadane 算法变体
+代码如下：
+```cpp
+class Solution {
+public:
+    int maxProfit(vector<int> prices) {
+        if (prices.empty()) return 0;
+        int currProfit = 0;         // 当前累计利润
+        int maxProfit = 0;
+        for (int i = 1; i < prices.size(); ++i) {
+            currProfit = (currProfit + prices[i] - prices[i - 1]) > 0 ? (currProfit + prices[i] - prices[i - 1]) : 0;
+            maxProfit = maxProfit > currProfit ? maxProfit : currProfit;
+        }
+        return maxProfit;
+    }
+};
+```
+
+- **知识点**：**DP**，**Kadane 算法变体**；
+
+> `Kadane` 算法是一种用于 **求解最大子数组和**（Maximum Subarray Sum）问题的经典 **动态规划** 算法。
+> 
+> 它的核心思想非常简洁：遍历数组，维护两个变量 -- **当前子数组的最大和**，以及 以**当前位置结尾的最大子数组和**。
+
+- **时间复杂度 -- $O(n)$，空间复杂度 -- $O(1)$**
+
+- **思路**：同上，只是上一种算法用 `min` 存当前最小值，该算法用 `currProfit` 存当前利润;
+
+---
