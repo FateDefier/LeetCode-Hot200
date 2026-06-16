@@ -26,7 +26,7 @@ public:
     }
 };
 
-// 双指针 -- 关键点：左右是否有“墙”
+// 双指针 -- 关键点：左右是否有“墙”，一列一列地填，从最左边开始
 class Solution {
 public:
     int trap(vector<int>& height) {
@@ -52,10 +52,28 @@ public:
     }
 };
 
-// 单调栈
+// 单调栈 -- 一行一行地填，从 height = 1 这一行开始填
 class Solution {
 public:
     int trap(vector<int>& height) {
+        int n = height.size();
+        if (n < 3) return 0;
+        int sum = 0;
 
+        stack<int> s;           // 递减存
+        for (int i = 0; i < n; ++i) {
+            // 当前高度 > 栈顶元素高度 --> 说明栈顶元素位置处为坑
+            while (!s.empty() && height[i] > height[s.top()]) {
+                int bottom = s.top();       // 当前坑的高度，用于计算填水的高度     
+                s.pop();                    // 取栈顶元素后要出栈
+                if (s.empty()) break;       // 下面要取栈顶的值，要判断上面的 bottom 出栈后栈内是否还有元素
+                int left = s.top();         // 左墙 left, 右墙 i
+                int h = min(height[left], height[i]) - height[bottom];
+                int w = i - left - 1;       // 坑内所有元素的填水高度必定相同，因为是一层一层填水的
+                sum += w * h;
+            }
+            s.push(i);
+        }
+        return sum;
     }
 };
