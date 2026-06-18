@@ -56,6 +56,7 @@ public:
     }
 };
 
+// 优化解法
 class Solution {
 public:
     vector<int> maxSlidingWindow(vector<int>& nums, int k) {
@@ -63,8 +64,8 @@ public:
         if (n == 0 || k == 0) return {};
         if (n < k) return {};
 
-        // int dq[100000];          // 1 <= nums.length <= 10^5，存下标，存值在有重复值时无法判断删除哪一个保留在窗口的元素
-        int* dq = new int[n];       // 极致的空间优化：动态分配存储空间，但是 new 比直接定义数组时间效率更低，但是可以避免栈溢出的问题
+        int dq[100000];          // 1 <= nums.length <= 10^5，存下标，存值在有重复值时无法判断删除哪一个保留在窗口的元素
+        // int* dq = new int[n];       // 极致的空间优化：动态分配存储空间，但是 new 比直接定义数组时间效率更低，但是可以避免栈溢出的问题
         int head = 0, tail = 0;     // dq 的首尾指针，head 指向队头元素，tail 指向队尾元素的下一位置
 
         vector<int> res;
