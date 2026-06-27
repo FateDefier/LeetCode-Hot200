@@ -1,3 +1,6 @@
+#include <vector>
+using namespace std;
+
 struct TreeNode {
     int val;
     TreeNode *left;
@@ -8,6 +11,42 @@ struct TreeNode {
 };
 
 // 思路 1：从根节点出发，两条路径分别找到 p 和 q，记录路径，两路径最后一个相同的结点即为 LCA
+class Solution {
+private:
+    // 从 root 查找 target，并把从 root 到 target 的路径存入 path
+    bool findPath(TreeNode *root, TreeNode *target, vector<TreeNode*> &path) {
+        if (root == nullptr) return false;
+
+        // 加入当前结点
+        path.push_back(root);
+        // 当前结点为 target 直接返回
+        if (root == target) return true;
+        // 当前结点不为 target，在左右子树中递归找 target
+        if (findPath(root->left, target, path) == true) return true;
+        if (findPath(root->right, target, path) == true) return true;
+
+        // 没找到，回溯：移除当前节点
+        path.pop_back();
+        return false;
+    }
+public:
+    TreeNode* lowestCommonAncestor(TreeNode *root, TreeNode *p, TreeNode *q) {
+        // 找到从 root 到 p 和 q 的路径
+        vector<TreeNode*> pathP, pathQ;
+        findPath(root, p, pathP);
+        findPath(root, q, pathQ);
+
+        // 比较两条路径，最后一个相同的即为 LCA
+        TreeNode *LCA = nullptr;
+        int i = 0;
+        while (i < pathP.size() && i < pathQ.size() && pathP[i] == pathQ[i]) {
+            LCA = pathP[i];
+            ++i;
+        }
+
+        return LCA;
+    }
+};
 
 // 思路 2：核心思想：分治，思路见注释
 class Solution {
